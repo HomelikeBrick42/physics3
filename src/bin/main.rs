@@ -60,16 +60,9 @@ fn main() {
 
         let dt = Number::from_num(dt.as_nanos()) * number!(0.000_000_001);
         fixed_time += dt;
-        // while fixed_time >= TIME_STEP {
-        //     state.update(TIME_STEP);
-        //     fixed_time -= TIME_STEP;
-        // }
-
-        if rl.is_key_pressed(KeyboardKey::KEY_F) {
+        while fixed_time >= TIME_STEP {
             state.update(TIME_STEP);
-        }
-        if rl.is_key_down(KeyboardKey::KEY_SPACE) {
-            state.update(TIME_STEP);
+            fixed_time -= TIME_STEP;
         }
 
         // Rendering
@@ -91,14 +84,14 @@ fn main() {
                     rotation: 0.0,
                     zoom: 1.0,
                 });
-                for (index, circle) in state.circles.iter().enumerate() {
+                for circle in &state.circles {
                     d.draw_circle_v(
                         raylib::math::Vector2 {
                             x: circle.position.x.lossy_into(),
                             y: (-circle.position.y).lossy_into(),
                         },
                         circle.radius.lossy_into(),
-                        if index == 14 { Color::BLUE } else { Color::RED },
+                        Color::RED,
                     );
                 }
             }
