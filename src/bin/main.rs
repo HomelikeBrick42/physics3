@@ -30,7 +30,7 @@ fn main() {
         y: Number::from_num(WINDOW_HEIGHT) / number!(2),
     };
 
-    let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::from_seed(Default::default());
+    let mut rng = rand::thread_rng();
     let mut state = PhysicsState::new(
         Some(min_bounds),
         Some(max_bounds),
@@ -42,14 +42,16 @@ fn main() {
                     y: random_in_range(&mut rng, (min_bounds.y + radius)..=(max_bounds.x - radius)),
                 },
                 velocity: Vector2 {
-                    x: random_in_range(&mut rng, number!(-50.0)..=number!(50.0)),
-                    y: random_in_range(&mut rng, number!(-50.0)..=number!(50.0)),
-                },
+                    x: random_in_range(&mut rng, number!(-1.0)..=number!(1.0)),
+                    y: random_in_range(&mut rng, number!(-1.0)..=number!(1.0)),
+                }
+                .normalized()
+                    * number!(300),
                 mass: Number::PI * radius * radius,
                 radius,
             }
         })
-        .take(50),
+        .take(100),
     );
     let mut last_time = std::time::Instant::now();
     let mut fixed_time = number!(0);
@@ -99,6 +101,14 @@ fn main() {
                 &format!("Frame Time: {:.3}ms", dt * number!(1000)),
                 5,
                 5,
+                20,
+                Color::WHITE,
+            );
+            let total_energy: Number = state.circles.iter().map(Circle::get_energy).sum();
+            d.draw_text(
+                &format!("Total Energy: {}", total_energy),
+                5,
+                25,
                 20,
                 Color::WHITE,
             );

@@ -29,15 +29,15 @@ impl PhysicsState {
     }
 
     pub fn update(&mut self, ts: Number) {
-        self.circles
-            .par_iter_mut()
-            .for_each(|circle| circle.velocity.y -= number!(200) * ts);
+        // self.circles
+        //     .par_iter_mut()
+        //     .for_each(|circle| circle.velocity.y -= number!(200) * ts);
+
+        const MAX_ITERATIONS: usize = 1024;
+        let mut iterations = 0;
 
         let solved = AtomicBool::new(false);
-        for _ in 0..1000 {
-            if solved.load(Relaxed) {
-                break;
-            }
+        while !solved.load(Relaxed) && iterations < MAX_ITERATIONS {
             solved.store(true, Relaxed);
 
             std::mem::swap(&mut self.circles, &mut self.old_circles);
@@ -144,7 +144,14 @@ impl PhysicsState {
                         circle
                     },
                 ));
+
+            iterations += 1;
         }
+
+        if iterations == MAX_ITERATIONS {
+            println!("Max iterations reached, simulation may be unstable");
+        }
+
         self.circles
             .par_iter_mut()
             .for_each(|circle| circle.position += circle.velocity * ts);
