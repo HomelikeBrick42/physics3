@@ -56,7 +56,7 @@ impl PhysicsState {
                                     // rewind time
                                     circle.position -= circle.velocity * time;
                                     // adjust velocity
-                                    circle.velocity.y = circle.velocity.y.abs();
+                                    circle.velocity.y = -circle.velocity.y;
                                     // step back foward through time
                                     circle.position += circle.velocity * time;
 
@@ -72,7 +72,7 @@ impl PhysicsState {
                                     // rewind time
                                     circle.position -= circle.velocity * time;
                                     // adjust velocity
-                                    circle.velocity.x = circle.velocity.x.abs();
+                                    circle.velocity.x = -circle.velocity.x;
                                     // step back foward through time
                                     circle.position += circle.velocity * time;
 
@@ -90,7 +90,7 @@ impl PhysicsState {
                                     // rewind time
                                     circle.position -= circle.velocity * time;
                                     // adjust velocity
-                                    circle.velocity.y = -circle.velocity.y.abs();
+                                    circle.velocity.y = -circle.velocity.y;
                                     // step back foward through time
                                     circle.position += circle.velocity * time;
 
@@ -106,7 +106,7 @@ impl PhysicsState {
                                     // rewind time
                                     circle.position -= circle.velocity * time;
                                     // adjust velocity
-                                    circle.velocity.x = -circle.velocity.x.abs();
+                                    circle.velocity.x = -circle.velocity.x;
                                     // step back foward through time
                                     circle.position += circle.velocity * time;
 
