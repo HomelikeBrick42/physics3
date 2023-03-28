@@ -6,7 +6,11 @@ pub use circle::*;
 pub use state::*;
 pub use vector2::*;
 
-pub use fixed_macro::types::I64F64 as number;
+#[macro_export]
+macro_rules! number { ($($a:tt)+) => { ::fixed_macro::types::I64F64!($($a)+) } }
 pub type Number = fixed::types::I64F64;
 
-pub const TIME_STEP: Number = number!(0.001);
+pub const WINDOW_WIDTH: usize = 640;
+pub const WINDOW_HEIGHT: usize = 480;
+
+pub const TIME_STEP: Number = number!(0.01);
