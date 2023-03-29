@@ -1,4 +1,5 @@
-use crate::{number, Circle, Number, Vector2};
+use crate::{number, Circle, Number, Vector2, MAX_PHYSICS_ITERATIONS};
+use fixed_sqrt::FixedSqrt;
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
@@ -29,15 +30,36 @@ impl PhysicsState {
     }
 
     pub fn update(&mut self, ts: Number) {
-        // self.circles
-        //     .par_iter_mut()
-        //     .for_each(|circle| circle.velocity.y -= number!(200) * ts);
-
-        const MAX_ITERATIONS: usize = 1024;
-        let mut iterations = 0;
+        std::mem::swap(&mut self.circles, &mut self.old_circles);
+        self.circles.clear();
+        self.circles
+            .par_extend(self.old_circles.par_iter().copied().enumerate().map(
+                |(index, mut circle)| {
+                    let force: Vector2 = self
+                        .old_circles
+                        .par_iter()
+                        .copied()
+                        .enumerate()
+                        .map(|(other_index, other_circle)| {
+                            if index != other_index {
+                                const G: Number = number!(5);
+                                let relative_pos = other_circle.position - circle.position;
+                                let sqr_distance =
+                                    (circle.position - other_circle.position).sqr_length();
+                                G * (circle.mass * other_circle.mass) / sqr_distance * relative_pos
+                            } else {
+                                Vector2::ZERO
+                            }
+                        })
+                        .sum();
+                    circle.velocity += force / circle.mass * ts;
+                    circle
+                },
+            ));
 
         let solved = AtomicBool::new(false);
-        while !solved.load(Relaxed) && iterations < MAX_ITERATIONS {
+        let mut iterations = 0;
+        while !solved.load(Relaxed) && iterations < MAX_PHYSICS_ITERATIONS {
             solved.store(true, Relaxed);
 
             std::mem::swap(&mut self.circles, &mut self.old_circles);
@@ -114,27 +136,47 @@ impl PhysicsState {
                                 }
                             }
 
-                            for (other_index, other_circle) in self.old_circles.iter().enumerate() {
-                                if index != other_index {
-                                    let relative_velocity = circle.velocity - other_circle.velocity;
-                                    let relative_position = circle.position - other_circle.position;
-                                    let sqr_distance = relative_position.sqr_length();
-                                    let combined_radius = circle.radius + other_circle.radius;
-                                    if (sqr_distance < combined_radius * combined_radius)
-                                        && (relative_position.dot(-relative_velocity)
-                                            > Number::ZERO)
-                                    {
-                                        // TODO: find collision time so position can be adjusted
-
-                                        circle.velocity -= ((number!(2) * other_circle.mass)
-                                            / (circle.mass + other_circle.mass))
-                                            * (relative_velocity.dot(relative_position)
-                                                / sqr_distance)
-                                            * relative_position;
-
-                                        break 'collision_checks;
+                            if let Some(other_circle) = self
+                                .old_circles
+                                .par_iter()
+                                .enumerate()
+                                .find_map_first(|(other_index, other_circle)| {
+                                    if index != other_index {
+                                        let relative_velocity =
+                                            circle.velocity - other_circle.velocity;
+                                        let relative_position =
+                                            circle.position - other_circle.position;
+                                        let sqr_distance = relative_position.sqr_length();
+                                        let combined_radius = circle.radius + other_circle.radius;
+                                        if (sqr_distance < combined_radius * combined_radius)
+                                            && (relative_position.dot(-relative_velocity)
+                                                > Number::ZERO)
+                                        {
+                                            Some(other_circle)
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
                                     }
-                                }
+                                })
+                            {
+                                let relative_velocity = circle.velocity - other_circle.velocity;
+                                let relative_position = circle.position - other_circle.position;
+                                let sqr_distance = relative_position.sqr_length();
+                                let combined_radius = circle.radius + other_circle.radius;
+
+                                // TODO: find collision time so position can be adjusted accurately
+                                // this is a temporary solution to make it "sorta correct"
+                                circle.position += relative_position.normalized()
+                                    * (combined_radius - sqr_distance.sqrt());
+
+                                circle.velocity -= ((number!(2) * other_circle.mass)
+                                    / (circle.mass + other_circle.mass))
+                                    * (relative_velocity.dot(relative_position) / sqr_distance)
+                                    * relative_position;
+
+                                break 'collision_checks;
                             }
 
                             return circle;
@@ -148,8 +190,8 @@ impl PhysicsState {
             iterations += 1;
         }
 
-        if iterations == MAX_ITERATIONS {
-            println!("Max iterations reached, simulation may be unstable");
+        if iterations == MAX_PHYSICS_ITERATIONS {
+            println!("Max iterations reached, the simulation may become unstable");
         }
 
         self.circles

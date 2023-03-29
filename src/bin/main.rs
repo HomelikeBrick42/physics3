@@ -1,6 +1,7 @@
 use fixed::traits::LossyInto;
 use physics::{
-    number, Circle, Number, PhysicsState, Vector2, TIME_STEP, WINDOW_HEIGHT, WINDOW_WIDTH,
+    number, Circle, Number, PhysicsState, Vector2, MAX_TIME_STEPS_PER_FRAME, TIME_STEP,
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use raylib::prelude::*;
 
@@ -18,7 +19,6 @@ fn main() {
         .title("Hello, World")
         .size(WINDOW_WIDTH as _, WINDOW_HEIGHT as _)
         .msaa_4x()
-        .vsync()
         .build();
 
     let min_bounds = Vector2 {
@@ -35,7 +35,7 @@ fn main() {
         Some(min_bounds),
         Some(max_bounds),
         std::iter::repeat_with(|| {
-            let radius = random_in_range(&mut rng, number!(10.0)..=number!(20.0));
+            let radius = random_in_range(&mut rng, number!(5.0)..=number!(10.0));
             Circle {
                 position: Vector2 {
                     x: random_in_range(&mut rng, (min_bounds.x + radius)..=(max_bounds.x - radius)),
@@ -46,15 +46,16 @@ fn main() {
                     y: random_in_range(&mut rng, number!(-1.0)..=number!(1.0)),
                 }
                 .normalized()
-                    * number!(300),
+                    * number!(0),
                 mass: Number::PI * radius * radius,
                 radius,
             }
         })
-        .take(100),
+        .take(50),
     );
     let mut last_time = std::time::Instant::now();
     let mut fixed_time = number!(0);
+    let mut last_fixed_update_duration = std::time::Duration::ZERO;
     while !rl.window_should_close() {
         let time = std::time::Instant::now();
         let dt = time.duration_since(last_time);
@@ -62,9 +63,25 @@ fn main() {
 
         let dt = Number::from_num(dt.as_nanos()) * number!(0.000_000_001);
         fixed_time += dt;
-        while fixed_time >= TIME_STEP {
-            state.update(TIME_STEP);
-            fixed_time -= TIME_STEP;
+        if fixed_time >= TIME_STEP {
+            let mut time_steps = 0;
+
+            let start = std::time::Instant::now();
+            while fixed_time >= TIME_STEP {
+                if time_steps < MAX_TIME_STEPS_PER_FRAME {
+                    state.update(TIME_STEP);
+                }
+                fixed_time -= TIME_STEP;
+                time_steps += 1;
+            }
+            last_fixed_update_duration = start.elapsed();
+
+            if time_steps >= MAX_TIME_STEPS_PER_FRAME {
+                println!(
+                    "The game is lagging, skipping {} time steps",
+                    time_steps - MAX_TIME_STEPS_PER_FRAME + 1
+                );
+            }
         }
 
         // Rendering
@@ -104,9 +121,11 @@ fn main() {
                 20,
                 Color::WHITE,
             );
-            let total_energy: Number = state.circles.iter().map(Circle::get_energy).sum();
             d.draw_text(
-                &format!("Total Energy: {}", total_energy),
+                &format!(
+                    "Fixed Update Time: {:.3}ms",
+                    last_fixed_update_duration.as_secs_f64() * 1000.0
+                ),
                 5,
                 25,
                 20,

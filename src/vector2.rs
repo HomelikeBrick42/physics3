@@ -9,7 +9,7 @@ pub struct Vector2 {
 }
 
 impl Vector2 {
-    const ZERO: Vector2 = Vector2 {
+    pub const ZERO: Vector2 = Vector2 {
         x: Number::ZERO,
         y: Number::ZERO,
     };
@@ -84,6 +84,16 @@ impl std::ops::AddAssign<Vector2> for Vector2 {
 impl std::ops::AddAssign<Number> for Vector2 {
     fn add_assign(&mut self, rhs: Number) {
         *self = *self + rhs;
+    }
+}
+
+impl std::iter::Sum for Vector2 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        let mut result = Vector2::ZERO;
+        for value in iter {
+            result += value;
+        }
+        result
     }
 }
 
